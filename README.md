@@ -1,6 +1,6 @@
 ## Kubernetes cookbooks
 
-Use [Chef](https://www.chef.io/) to manage a [Kubernetes](https://kubernetes.io/) cluster.
+Use [Chef](https://www.chef.io/) and [kubeadm](https://kubernetes.io/docs/setup/independent/create-cluster-kubeadm/) to manage a [Kubernetes](https://kubernetes.io/) cluster.
 
 ### Getting started
 
