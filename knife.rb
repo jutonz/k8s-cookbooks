@@ -8,7 +8,7 @@ knife[:ssh_attribute] = "knife_zero.host"
 knife[:use_sudo] = true
 
 ## use specific key file to connect server instead of ssh_agent(use ssh_agent is set true by default).
-#knife[:identity_file] = "~/.ssh/rs-dev-v2.pem"
+#knife[:identity_file] = "~/.ssh/digitalocean"
 
 ## Attributes of node objects will be saved to json file.
 ## the automatic_attribute_whitelist option limits the attributes to be saved.
