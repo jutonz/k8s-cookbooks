@@ -20,21 +20,27 @@ Use [Chef](https://www.chef.io/) and [kubeadm](https://kubernetes.io/docs/setup/
     ```
 3. Install [Knife Solo](http://matschaffer.github.io/knife-solo/) so you can use Chef without
   having to setup a Chef server
-    ```
-    gem install knife-solo
+    ```bash
+    $ gem install knife-solo
     ```
 4. Open "k8s cookbooks data bag secret" from 1password and copy the password to your clipboard.
 5. Write the data bag secret key to disk so you can access encrypted secrets
-   ```
-   pbpaste > .chef/data_bag_secret_file
+   ```bash
+   $ pbpaste > .chef/data_bag_secret_file
    ```
 6. Bootstrap your master node:
-    ```
-    knife solo prepare k8s-master
-    knife solo cook k8s-master --override-runlist "k8s::setup-master"
+    ```bash
+    $ knife solo prepare k8s-master
+    $ knife solo cook k8s-master --override-runlist "k8s::setup-master"
     ```
 7. Bootstrap your minion node(s) (run this for each node)
+    ```bash
+    $ knife solo prepare k8s-node
+    $ knife solo cook k8s-node --override-runlist "k8s::setup-node"
     ```
-    knife solo prepare k8s-node
-    knife solo cook k8s-node --override-runlist "k8s::setup-node"
-    ```
+8. Verify that your nodes are registered with the master
+   ```bash
+   $ ssh k8s-master
+   $ su ubuntu
+   $ kubectl get nodes
+   ```
