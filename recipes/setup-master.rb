@@ -1,6 +1,9 @@
 # knife zero bootstrap kb-master
 # knife zero converge "name:kb-master" --override-runlist "k8s::setup-master"
 
+include_recipe "apt::default"
+include_recipe "acme"
+
 group "ubuntu" do
   action :create
 end
@@ -45,9 +48,35 @@ apt_package "docker-engine"
 # See https://kubernetes.io/docs/getting-started-guides/kubeadm/
 apt_package "kubeadm"
 
+# Install nginx so we can respond to http cert verification
+apt_package "nginx"
+service "nginx" do
+  action :nothing
+  supports %i(restart reload status)
+end
+
+site = "k8s-master.jutonz.com"
+template "/etc/nginx/sites-available/default" do
+  source "default-site-available.erb"
+  variables({
+    site: site
+  })
+  notifies :start, "service[nginx]", :immediately
+end
+
+# Setup letsencrypt certs for https
+acme_certificate site do
+  wwwroot "/var/www/html"
+  crt "/etc/ssl/#{site}.crt"
+  chain "/etc/ssl/#{site}-chain.crt"
+  key "/etc/ssl/#{site}.key"
+  not_if { ::File.exists?("/etc/ssl/k8s-master.jutonz.com.crt") }
+end
+
 execute "kubeadm reset"
 
-execute "kubeadm init" do
+token = data_bag_item("secrets", "kubeadm_token")["key"]
+execute "kubeadm init --token #{token}" do
   user "root"
   not_if { ::File.exist?("/etc/kubernetes/admin.conf") }
 end
@@ -79,6 +108,6 @@ template "/etc/motd" do
   user "root"
   source "motd-master.erb"
   variables({
-    kubeadm_join_cmd: "kubeadm join --token <token> <master-ip>:<master-port>"
+    kubeadm_join_cmd: "kubeadm join --token #{data_bag_item("secrets", "kubeadm_token")["key"]} #{node["kubeadm"]["master_url"]}"
   })
 end

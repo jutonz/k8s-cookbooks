@@ -18,16 +18,23 @@ Use [Chef](https://www.chef.io/) and [kubeadm](https://kubernetes.io/docs/setup/
       User root
       IdentityFile ~/.ssh/digitalocean
     ```
-3. Install [Knife Zero](http://knife-zero.github.io/20_getting_started/) so you can use Chef without
+3. Install [Knife Solo](http://matschaffer.github.io/knife-solo/) so you can use Chef without
   having to setup a Chef server
     ```
-    gem install knife-zero
+    gem install knife-solo
     ```
-4. Bootstrap your master node:
+4. Open "k8s cookbooks data bag secret" from 1password and copy the password to your clipboard.
+5. Write the data bag secret key to disk so you can access encrypted secrets
+   ```
+   pbpaste > .chef/data_bag_secret_file
+   ```
+6. Bootstrap your master node:
     ```
-    knife zero bootstrap k8s-master --override-runlist "k8s::setup-master"
+    knife solo prepare k8s-master
+    knife solo cook k8s-master --override-runlist "k8s::setup-master"
     ```
-5. Bootstrap your minion node(s) (run this for each node)
+7. Bootstrap your minion node(s) (run this for each node)
     ```
-    knife zero bootstrap k8s-node --override-runlist "k8s::setup-node"
+    knife solo prepare k8s-node
+    knife solo cook k8s-node --override-runlist "k8s::setup-node"
     ```

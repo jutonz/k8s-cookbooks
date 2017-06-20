@@ -1,2 +1,6 @@
 clients/
 nodes/
+berks-cookbooks/
+.chef/
+
+.DS_Store
