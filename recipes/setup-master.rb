@@ -64,13 +64,16 @@ template "/etc/nginx/sites-available/default" do
   notifies :start, "service[nginx]", :immediately
 end
 
+directory "/etc/ssl/mycerts"
+
 # Setup letsencrypt certs for https
 acme_certificate site do
   wwwroot "/var/www/html"
-  crt "/etc/ssl/#{site}.crt"
-  chain "/etc/ssl/#{site}-chain.crt"
-  key "/etc/ssl/#{site}.key"
-  not_if { ::File.exists?("/etc/ssl/k8s-master.jutonz.com.crt") }
+  crt "/etc/ssl/mycerts/#{site}.crt"
+  chain "/etc/ssl/mycerts/#{site}-chain.crt"
+  key "/etc/ssl/mycerts/#{site}.key"
+  not_if { ::File.exists?("/etc/ssl/mycerts/#{site}.crt") }
+  notifies :stop, "service[nginx]", :immediately
 end
 
 execute "kubeadm reset"

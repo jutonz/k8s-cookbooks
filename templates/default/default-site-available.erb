@@ -2,8 +2,8 @@ server {
   listen 443 ssl default_server;
   listen [::]:443 ssl default_server;
 
-  ssl_certificate /etc/ssl/<%= @site %>.crt;
-  ssl_certificate_key /etc/ssl/<%= @site %>.key;
+  ssl_certificate /etc/ssl/mycerts/<%= @site %>.crt;
+  ssl_certificate_key /etc/ssl/myerts/<%= @site %>.key;
 
   root /var/www/html;
 

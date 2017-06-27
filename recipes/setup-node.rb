@@ -1,7 +1,8 @@
 # knife zero bootstrap kb-master
 # knife zero converge "name:kb-node" --override-runlist "k8s::setup-node"
 
-#include_recipe "chef-client::config"
+include_recipe "apt::default"
+include_recipe "acme"
 
 apt_package "apt-transport-https"
 
@@ -27,18 +28,39 @@ apt_package "docker-engine"
   kubernetes-cni
 ).each { |pkg| apt_package(pkg) }
 
+# Install nginx so we can respond to http cert verification
+apt_package "nginx"
+service "nginx" do
+  action :nothing
+  supports %i(restart reload status)
+end
+
+site = "k8s-test.jutonz.com"
+template "/etc/nginx/sites-available/default" do
+  source "default-site-available.erb"
+  variables({
+    site: site
+  })
+  notifies :start, "service[nginx]", :immediately
+end
+
+directory "/etc/ssl/mycerts"
+
+# Setup letsencrypt certs for https
+acme_certificate site do
+  wwwroot "/var/www/html"
+  crt "/etc/ssl/mycerts/#{site}.crt"
+  chain "/etc/ssl/mycerts/#{site}-chain.crt"
+  key "/etc/ssl/mycerts/#{site}.key"
+  not_if { ::File.exists?("/etc/ssl/mycerts/#{site}.crt") }
+  notifies :stop, "service[nginx]", :immediately
+end
+
 # Install kubeadm, which automates k8s setup
 # Optionally skip this and setup k8s manually
 # See https://kubernetes.io/docs/getting-started-guides/kubeadm/
 apt_package "kubeadm"
 
-# This is where you will store a copy of your key on the chef-client
-#secret = Chef::EncryptedDataBagItem.load_secret("/etc/chef/encrypted_data_bag_secret")
- 
-# This decrypts the data bag contents of "mysecrets->marioworld" and uses the key defined at variable "secret"
-#luigi_keys = Chef::EncryptedDataBagItem.load("mysecrets", "marioworld", secret)
-
-# TODO join node to master
 # TODO need vpc such that node can communicate w/ master on port 6443
 execute "kubeadm reset"
 token = data_bag_item("secrets", "kubeadm_token")["key"]
