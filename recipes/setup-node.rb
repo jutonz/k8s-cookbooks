@@ -2,7 +2,6 @@
 # knife zero converge "name:kb-node" --override-runlist "k8s::setup-node"
 
 include_recipe "apt::default"
-include_recipe "acme"
 
 apt_package "apt-transport-https"
 
@@ -27,34 +26,6 @@ apt_package "docker-engine"
   kubectl
   kubernetes-cni
 ).each { |pkg| apt_package(pkg) }
-
-# Install nginx so we can respond to http cert verification
-apt_package "nginx"
-service "nginx" do
-  action :nothing
-  supports %i(restart reload status)
-end
-
-site = "k8s-test.jutonz.com"
-template "/etc/nginx/sites-available/default" do
-  source "default-site-available.erb"
-  variables({
-    site: site
-  })
-  notifies :start, "service[nginx]", :immediately
-end
-
-directory "/etc/ssl/mycerts"
-
-# Setup letsencrypt certs for https
-acme_certificate site do
-  wwwroot "/var/www/html"
-  crt "/etc/ssl/mycerts/#{site}.crt"
-  chain "/etc/ssl/mycerts/#{site}-chain.crt"
-  key "/etc/ssl/mycerts/#{site}.key"
-  not_if { ::File.exists?("/etc/ssl/mycerts/#{site}.crt") }
-  notifies :stop, "service[nginx]", :immediately
-end
 
 # Install kubeadm, which automates k8s setup
 # Optionally skip this and setup k8s manually

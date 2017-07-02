@@ -1,5 +1,7 @@
-# knife zero bootstrap kb-master
-# knife zero converge "name:kb-master" --override-runlist "k8s::setup-master"
+# knife solo prepare k8s-master
+# knife solo cook k8s-master --override-runlist "k8s::setup-master"
+
+SITE = "k8s-master.jutonz.com"
 
 include_recipe "apt::default"
 include_recipe "acme"
@@ -52,14 +54,13 @@ apt_package "kubeadm"
 apt_package "nginx"
 service "nginx" do
   action :nothing
-  supports %i(restart reload status)
+  supports %i(enable disable start stop restart reload status)
 end
 
-site = "k8s-master.jutonz.com"
 template "/etc/nginx/sites-available/default" do
   source "default-site-available.erb"
   variables({
-    site: site
+    site: SITE
   })
   notifies :start, "service[nginx]", :immediately
 end
@@ -67,12 +68,12 @@ end
 directory "/etc/ssl/mycerts"
 
 # Setup letsencrypt certs for https
-acme_certificate site do
+acme_certificate SITE do
   wwwroot "/var/www/html"
-  crt "/etc/ssl/mycerts/#{site}.crt"
-  chain "/etc/ssl/mycerts/#{site}-chain.crt"
-  key "/etc/ssl/mycerts/#{site}.key"
-  not_if { ::File.exists?("/etc/ssl/mycerts/#{site}.crt") }
+  crt "/etc/ssl/mycerts/#{SITE}.crt"
+  chain "/etc/ssl/mycerts/#{SITE}-chain.crt"
+  key "/etc/ssl/mycerts/#{SITE}.key"
+  not_if { ::File.exists?("/etc/ssl/mycerts/#{SITE}.crt") }
   notifies :stop, "service[nginx]", :immediately
 end
 
@@ -104,6 +105,14 @@ execute "apply network config" do
   user "root"
   command "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f /home/ubuntu/calico.yaml"
   # TODO add only_if
+end
+
+# Store tls keys in a secret
+# TODO: make this its own recipe so we can update secret as tls certs rotate?
+execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl create secret tls tls-secret --key /etc/ssl/mycerts/#{SITE}.key --cert /etc/ssl/mycerts/#{SITE}.crt"
+
+execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl taint nodes --all node-role.kubernetes.io/master-" do
+  user "ubuntu"
 end
 
 # Set a motd explaining how to join nodes to the cluster
