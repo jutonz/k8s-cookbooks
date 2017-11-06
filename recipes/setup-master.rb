@@ -1,8 +1,6 @@
 # knife solo prepare k8s-master
 # knife solo cook k8s-master --override-runlist "k8s::setup-master"
 
-SITE = "k8s-master.jutonz.com"
-
 include_recipe "apt::default"
 include_recipe "acme"
 
@@ -60,7 +58,7 @@ end
 template "/etc/nginx/sites-available/default" do
   source "default-site-available.erb"
   variables({
-    site: SITE
+    site: node["addr"]["domain"]
   })
   notifies :start, "service[nginx]", :immediately
 end
@@ -68,19 +66,40 @@ end
 directory "/etc/ssl/mycerts"
 
 # Setup letsencrypt certs for https
-acme_certificate SITE do
+acme_certificate node["addr"]["domain"] do
   wwwroot "/var/www/html"
-  crt "/etc/ssl/mycerts/#{SITE}.crt"
-  chain "/etc/ssl/mycerts/#{SITE}-chain.crt"
-  key "/etc/ssl/mycerts/#{SITE}.key"
-  not_if { ::File.exists?("/etc/ssl/mycerts/#{SITE}.crt") }
+  crt "/etc/ssl/mycerts/#{node["addr"]["domain"]}.crt"
+  chain "/etc/ssl/mycerts/#{node["addr"]["domain"]}-chain.crt"
+  key "/etc/ssl/mycerts/#{node["addr"]["domain"]}.key"
+  not_if { ::File.exists?("/etc/ssl/mycerts/#{node["addr"]["domain"]}.crt") }
   notifies :stop, "service[nginx]", :immediately
+end
+
+# Setup public IP alias
+
+service "networking" do
+  action :nothing
+  supports %i(enable disable start stop restart reload status)
+end
+
+template "/etc/network/interfaces" do
+  source "network-interfaces.erb"
+  notifies :restart, "service[networking]", :delayed
+end
+
+template "/etc/network/interfaces.d/network-alias" do
+  source "network-alias.erb"
+  variables({
+    public_ip: node["addr"]["ip"]
+  })
+  notifies :restart, "service[networking]", :immediately
 end
 
 execute "kubeadm reset"
 
 token = data_bag_item("secrets", "kubeadm_token")["key"]
-execute "kubeadm init --token #{token}" do
+master_private_ip = node["kubeadm"]["master_private_ip"]
+execute "kubeadm init --token #{token} --pod-network-cidr=10.244.0.0/16 --apiserver-advertise-address=#{master_private_ip}" do
   user "root"
   not_if { ::File.exist?("/etc/kubernetes/admin.conf") }
 end
@@ -97,23 +116,38 @@ end
 
 # Apply a standard network config for kubeadm managed k8s
 # See http://docs.projectcalico.org/v2.2/getting-started/kubernetes/installation/hosted/kubeadm/
-remote_file "/home/ubuntu/calico.yaml" do
-  owner "ubuntu"
-  source "http://docs.projectcalico.org/v2.2/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml"
-end
-execute "apply network config" do
+#remote_file "/home/ubuntu/calico.yaml" do
+  #owner "ubuntu"
+  #source "https://docs.projectcalico.org/v2.4/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml"
+#end
+#execute "apply network config" do
+  #user "root"
+  #command "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f /home/ubuntu/calico.yaml"
+#end
+
+# Use flannel for pod networking
+#remote_file "/home/ubuntu/calico.yaml" do
+  #owner "ubuntu"
+  #source "https://docs.projectcalico.org/v2.4/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml"
+#end
+rbac = "https://raw.githubusercontent.com/coreos/flannel/v0.8.0/Documentation/kube-flannel-rbac.yml"
+execute "apply networking rbac" do
   user "root"
-  command "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f /home/ubuntu/calico.yaml"
-  # TODO add only_if
+  command "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f #{rbac}"
+end
+config = "https://raw.githubusercontent.com/coreos/flannel/v0.8.0/Documentation/kube-flannel.yml"
+execute "apply networking config" do
+  user "root"
+  command "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f #{config}"
 end
 
 # Store tls keys in a secret
 # TODO: make this its own recipe so we can update secret as tls certs rotate?
-execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl create secret tls tls-secret --key /etc/ssl/mycerts/#{SITE}.key --cert /etc/ssl/mycerts/#{SITE}.crt"
+execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl create secret tls tls-secret --key /etc/ssl/mycerts/#{node["addr"]["domain"]}.key --cert /etc/ssl/mycerts/#{node["addr"]["domain"]}.crt"
 
-execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl taint nodes --all node-role.kubernetes.io/master-" do
-  user "ubuntu"
-end
+#execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl taint nodes --all node-role.kubernetes.io/master-" do
+  #user "ubuntu"
+#end
 
 # Set a motd explaining how to join nodes to the cluster
 template "/etc/motd" do

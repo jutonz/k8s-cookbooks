@@ -1,9 +1,17 @@
-default['acme']['contact'] = "mailto:jutonz42@gmail.com"
+default["acme"]["contact"] = "mailto:jutonz42@gmail.com"
 
-default['kubeadm'] = {
-  "master_url" => "k8s-master.jutonz.com:6443"
+MASTER_PRIVATE_IP = "192.168.1.85".freeze
+
+default["kubeadm"] = {
+  "master_private_ip" => MASTER_PRIVATE_IP,
+  "master_url" => "#{MASTER_PRIVATE_IP}:6443"
 }
 
-#default['chef_client']['config'] = {
+default["addr"] = {
+  "domain" => "homepage-test.notmalware.biz",
+  "ip"     => "99.111.155.95"
+}
+
+#default["chef_client"]["config"] = {
   #"encrypted_data_bag_secret" => File.expand_path("../../tmp/data_bag_secret_file", __FILE__)
 #}
