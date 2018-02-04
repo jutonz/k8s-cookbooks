@@ -48,7 +48,7 @@ apt_package "docker-engine"
 execute "kubeadm reset"
 
 token = data_bag_item("secrets", "kubeadm_token")["key"]
-execute "kubeadm init --token #{token}" do
+execute "kubeadm init --token #{token} --apiserver-advertise-address 99.111.155.95 --apiserver-bind-port 443" do
   user "root"
   not_if { ::File.exists?("/etc/kubernetes/admin.conf") }
 end
