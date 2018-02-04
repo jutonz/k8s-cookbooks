@@ -1,7 +1,7 @@
 default['acme']['contact'] = "mailto:jutonz42@gmail.com"
 
 default['kubeadm'] = {
-  "master_url" => "k8s-master-home:443"
+  "master_url" => "k8s-master-home:6443"
 }
 
 #default['chef_client']['config'] = {
