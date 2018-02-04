@@ -29,7 +29,7 @@ end
 # TODO need vpc such that node can communicate w/ master on port 6443
 execute "kubeadm reset"
 token = data_bag_item("secrets", "kubeadm_token")["key"]
-execute "kubeadm join --token #{token} #{node["kubeadm"]["master_url"]}" do
+execute "kubeadm join --token #{token} #{node["kubeadm"]["master_url"]} --discovery-token-unsafe-skip-ca-verification" do
   user "root"
 end
 
