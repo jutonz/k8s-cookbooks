@@ -17,20 +17,14 @@ apt_update "keep it fresh" do
   action :update
 end
 
-# Install docker
-apt_package "docker-engine"
-
 # Install kubernetes dependent packages
 %w(
+  docker-engine
   kubelet
   kubectl
   kubernetes-cni
+  kubeadm
 ).each { |pkg| apt_package(pkg) }
-
-# Install kubeadm, which automates k8s setup
-# Optionally skip this and setup k8s manually
-# See https://kubernetes.io/docs/getting-started-guides/kubeadm/
-apt_package "kubeadm"
 
 # TODO need vpc such that node can communicate w/ master on port 6443
 execute "kubeadm reset"
