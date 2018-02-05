@@ -34,11 +34,9 @@ apt_update "keep it fresh" do
   action :update
 end
 
-# Install docker
-apt_package "docker-engine"
-
 # Install kubernetes dependent packages
 %w(
+  docker-engine
   kubelet
   kubectl
   kubernetes-cni
@@ -48,7 +46,7 @@ apt_package "docker-engine"
 execute "kubeadm reset"
 
 token = data_bag_item("secrets", "kubeadm_token")["key"]
-execute "kubeadm init --token #{token}" do
+execute "kubeadm init --token #{token} --pod-network-cidr=192.168.0.0/16" do
   user "root"
   not_if { ::File.exists?("/etc/kubernetes/admin.conf") }
 end
@@ -67,7 +65,8 @@ end
 # See http://docs.projectcalico.org/v2.2/getting-started/kubernetes/installation/hosted/kubeadm/
 remote_file "/home/ubuntu/calico.yaml" do
   owner "ubuntu"
-  source "http://docs.projectcalico.org/v2.2/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml"
+  source "https://docs.projectcalico.org/v3.0/getting-started/kubernetes/installation/hosted/kubeadm/1.7/calico.yaml"
+  #source "http://docs.projectcalico.org/v2.2/getting-started/kubernetes/installation/hosted/kubeadm/1.6/calico.yaml"
 end
 execute "apply network config" do
   user "root"
@@ -75,10 +74,37 @@ execute "apply network config" do
   # TODO add only_if
 end
 
-# Store tls keys in a secret
-# TODO: make this its own recipe so we can update secret as tls certs rotate?
-#execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl create secret tls tls-secret --key /etc/ssl/mycerts/#{SITE}.key --cert /etc/ssl/mycerts/#{SITE}.crt"
+# Install nginx ingress controller
+# https://github.com/kubernetes/ingress-nginx/blob/master/deploy/README.md
+networking_dir = "/home/ubuntu/ingress-controller"
+directory networking_dir do
+  owner "ubuntu"
+end
+files = %w(
+  namespace
+  default-backend
+  configmap
+  tcp-services-configmap
+  udp-services-configmap
+  rbac
+  with-rbac
+).each do |file|
+  remote_file "#{networking_dir}/#{file}.yaml" do
+    source "https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/#{file}.yaml"
+  end
+  execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f #{networking_dir}/#{file}.yaml" do
+    user "ubuntu"
+  end
+end
 
+template "#{networking_dir}/baremetal-service-nodeport.yaml" do
+  variables({ node_port: "32042" })
+end
+execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f #{networking_dir}/baremetal-service-nodeport.yaml" do
+  user "ubuntu"
+end
+
+# Remove master taint to allow scheduling pods on master node
 #execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl taint nodes --all node-role.kubernetes.io/master-" do
   #user "ubuntu"
 #end
@@ -87,7 +113,11 @@ end
 template "/etc/motd" do
   user "root"
   source "motd-master.erb"
-  variables({
-    kubeadm_join_cmd: "kubeadm join --token #{data_bag_item("secrets", "kubeadm_token")["key"]} #{node["kubeadm"]["master_url"]}"
-  })
+  variables lazy {
+    join_cmd = `kubeadm token create --print-join-command`.strip
+    { kubeadm_join_cmd: join_cmd }
+  }
+  #variables({
+    #kubeadm_join_cmd: "kubeadm join --token #{data_bag_item("secrets", "kubeadm_token")["key"]} #{node["kubeadm"]["master_url"]}"
+  #})
 end
