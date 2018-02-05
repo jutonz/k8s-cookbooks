@@ -46,7 +46,7 @@ end
 execute "kubeadm reset"
 
 token = data_bag_item("secrets", "kubeadm_token")["key"]
-execute "kubeadm init --token #{token} --pod-network-cidr=192.168.0.0/16 --feature-gates=CustomPodDNS=true" do
+execute "kubeadm init --token #{token} --pod-network-cidr=192.168.0.0/16" do
   user "root"
   not_if { ::File.exists?("/etc/kubernetes/admin.conf") }
 end
