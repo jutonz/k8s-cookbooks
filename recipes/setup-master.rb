@@ -43,6 +43,14 @@ end
   kubeadm
 ).each { |pkg| apt_package(pkg) }
 
+# Pods inherit /etc/resolv.conf from the node on which they're scheduled.
+# The kubedns pod will always run on the master node.
+file "/etc/resolvconf/resolv.conf.d/base" do
+  content "nameserver 8.8.8.8"
+  owner "root"
+  group "root"
+end
+
 execute "kubeadm reset"
 
 token = data_bag_item("secrets", "kubeadm_token")["key"]
@@ -87,14 +95,22 @@ files = %w(
   tcp-services-configmap
   udp-services-configmap
   rbac
-  with-rbac
 ).each do |file|
   remote_file "#{networking_dir}/#{file}.yaml" do
     source "https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/#{file}.yaml"
+    owner "ubuntu"
   end
   execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f #{networking_dir}/#{file}.yaml" do
     user "ubuntu"
   end
+end
+
+# Customize ingress controller pod to always run on master (it seems pods on
+# nodes cannot communicate with the master pod...something with this setup)
+template "#{networking_dir}/ingress-controller-with-rbac.yaml" do
+end
+execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f #{networking_dir}/ingress-controller-with-rbac.yaml" do
+  user "ubuntu"
 end
 
 template "#{networking_dir}/baremetal-service-nodeport.yaml" do
