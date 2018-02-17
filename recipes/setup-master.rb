@@ -91,7 +91,6 @@ end
 files = %w(
   namespace
   default-backend
-  configmap
   tcp-services-configmap
   udp-services-configmap
   rbac
@@ -105,10 +104,14 @@ files = %w(
   end
 end
 
+template "#{networking_dir}/ingress-controller-configmap.yaml"
+execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f #{networking_dir}/ingress-controller-configmap.yaml" do
+  user "ubuntu"
+end
+
 # Customize ingress controller pod to always run on master (it seems pods on
 # nodes cannot communicate with the master pod...something with this setup)
-template "#{networking_dir}/ingress-controller-with-rbac.yaml" do
-end
+template "#{networking_dir}/ingress-controller-with-rbac.yaml"
 execute "KUBECONFIG=/home/ubuntu/admin.conf kubectl apply -f #{networking_dir}/ingress-controller-with-rbac.yaml" do
   user "ubuntu"
 end
