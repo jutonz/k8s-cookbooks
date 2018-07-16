@@ -116,5 +116,5 @@ if ! shopt -oq posix; then
   fi
 fi
 
-export KUBECONFIG=$HOME/admin.conf
+export KUBECONFIG=$HOME/.kube/admin.conf
 alias kb=kubectl

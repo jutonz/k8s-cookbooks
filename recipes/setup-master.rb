@@ -1,7 +1,7 @@
 # knife solo prepare k8s-master
 # knife solo cook k8s-master --override-runlist "k8s::setup-master"
 
-SITE = "k8s-master.jutonz.com"
+SITE = node["host"]
 
 include_recipe "apt::default"
 
@@ -145,7 +145,9 @@ end
 
 # Customize ingress controller pod to always run on master (it seems pods on
 # nodes cannot communicate with the master pod...something with this setup)
-template "#{networking_dir}/ingress-controller-with-rbac.yaml"
+template "#{networking_dir}/ingress-controller-with-rbac.yaml" do
+  source "ingress-controller-with-rbac.yaml"
+end
 execute "KUBECONFIG=/home/k8s/.kube/admin.conf kubectl apply -f #{networking_dir}/ingress-controller-with-rbac.yaml" do
   user "k8s"
 end
