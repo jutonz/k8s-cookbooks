@@ -1,0 +1,50 @@
+global
+  log /dev/log local0 debug
+  maxconn 2000
+  user haproxy
+  group haproxy
+
+defaults
+  log global
+  mode http
+  option httplog
+  option forwardfor
+  option http-server-close
+  timeout connect 5000
+  timeout client 1000000
+  timeout server 1000000
+
+frontend http
+  bind *:80
+  bind *:443 ssl crt /etc/letsencrypt/live/haproxy/
+  default_backend redir
+
+  acl is_le path_beg /.well-known/acme-challenge
+  <% @sites.each do |site| %>
+  acl is_<%= site[:name] %> hdr(host) -i <%= site[:host] %>
+  <% end %>
+
+  use_backend be_localhost if is_le
+  <% @sites.each do |site| %>
+  use_backend be_<%= site[:backend] %> if is_<%= site[:name] %>
+  <% end %>
+
+<% if @stats %>
+listen stats
+  bind *:<%= @stats[:port] %> ssl crt /etc/letsencrypt/live/haproxy/
+  stats enable
+  stats auth <%= @stats[:username] %>:<%= @stats[:password] %>
+  stats uri <%= @stats[:path] %>
+  stats hide-version
+<% end %>
+
+backend be_localhost
+  server localhost 127.0.0.1:<%= @localhost_port %>
+
+backend redir
+  redirect location http://<%+ @host %>
+
+backend be_k8s
+  redirect scheme https code 302 if !{ ssl_fc }
+  http-request set-header X-Forwarded-Proto https
+  server k8s-ingress-controller <%= @ingress_controller_host %>

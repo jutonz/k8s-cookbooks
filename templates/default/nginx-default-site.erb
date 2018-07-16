@@ -1,0 +1,9 @@
+server {
+  listen 4444 default_server;
+  server_name $http_host;
+  root /var/www/html;
+  location ~ /.well-known {
+    allow all;
+  }
+}
+

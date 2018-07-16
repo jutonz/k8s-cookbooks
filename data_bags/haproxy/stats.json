@@ -1,0 +1,17 @@
+{
+  "id": "stats",
+  "username": {
+    "encrypted_data": "HjcZmWua5T3H5Tnyc/68q22CdCWFiglEgA==\n",
+    "iv": "LXOBe/XMd20owLl0\n",
+    "auth_tag": "T63nGvwyJ793EVa8rP8bSg==\n",
+    "version": 3,
+    "cipher": "aes-256-gcm"
+  },
+  "password": {
+    "encrypted_data": "V8R2Uba/ToItWvz1bak7d+euG5fF5A4UI4dPvQXs\n",
+    "iv": "jZx+TsPiIAdr6EpR\n",
+    "auth_tag": "/zOYdaLGP/XrY/DyE/ighA==\n",
+    "version": 3,
+    "cipher": "aes-256-gcm"
+  }
+}
