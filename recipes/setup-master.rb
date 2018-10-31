@@ -115,54 +115,7 @@ execute "apply network config" do
 end
 
 # Install nginx ingress controller
-# https://github.com/kubernetes/ingress-nginx/blob/master/deploy/README.md
-networking_dir = "/home/k8s/ingress-controller"
-directory networking_dir do
-  owner "k8s"
-end
-files = %w(
-  namespace
-  default-backend
-  tcp-services-configmap
-  udp-services-configmap
-  rbac
-).each do |file|
-  remote_file "#{networking_dir}/#{file}.yaml" do
-    source "https://raw.githubusercontent.com/kubernetes/ingress-nginx/master/deploy/#{file}.yaml"
-    owner "k8s"
-  end
-  execute "KUBECONFIG=/home/k8s/.kube/admin.conf kubectl apply -f #{networking_dir}/#{file}.yaml" do
-    user "k8s"
-  end
-end
-
-template "#{networking_dir}/ingress-controller-configmap.yaml" do
-  source "ingress-controller-configmap.yaml"
-end
-execute "KUBECONFIG=/home/k8s/.kube/admin.conf kubectl apply -f #{networking_dir}/ingress-controller-configmap.yaml" do
-  user "k8s"
-end
-
-# Customize ingress controller pod to always run on master (it seems pods on
-# nodes cannot communicate with the master pod...something with this setup)
-template "#{networking_dir}/ingress-controller-with-rbac.yaml" do
-  source "ingress-controller-with-rbac.yaml"
-end
-execute "KUBECONFIG=/home/k8s/.kube/admin.conf kubectl apply -f #{networking_dir}/ingress-controller-with-rbac.yaml" do
-  user "k8s"
-end
-
-template "#{networking_dir}/baremetal-service-nodeport.yaml" do
-  variables({ node_port: "32042" })
-end
-execute "KUBECONFIG=/home/k8s/.kube/admin.conf kubectl apply -f #{networking_dir}/baremetal-service-nodeport.yaml" do
-  user "k8s"
-end
-
-# Remove master taint to allow scheduling pods on master node
-execute "KUBECONFIG=/home/k8s/.kube/admin.conf kubectl taint nodes --all node-role.kubernetes.io/master-" do
-  user "k8s"
-end
+include_recipe "nginx-ingress"
 
 # Set a motd explaining how to join nodes to the cluster
 template "/etc/motd" do
